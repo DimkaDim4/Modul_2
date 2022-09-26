@@ -19,13 +19,14 @@ namespace Modul_2
             this.gauss_shiftparameter = 0.0;
             this.gauss_scale = 1.0;
             this.gauss_nu = 3.0;
-
             this.clogg_expectedvalue = 0.0;
             this.clogg_dispersion = 1.0;
             this.clogg_scale = 1.0;
-
-            this.SampleSize = 100;
             this.clogg_level = 0.1;
+            this.sample_size = 100;
+            this.percent_emission = 5.0;
+
+            this.comboBox2.SelectedIndex = 0;
 
             this.PaintDistribution();
             this.PaintClogg();
@@ -40,8 +41,9 @@ namespace Modul_2
             this.textBox7.DataBindings.Add("Text", this, "CloggScale");
 
             this.textBox6.DataBindings.Add("Text", this, "CloggLevel");
-            this.numericUpDown1.DataBindings.Add("Value", this, "SampleSize");
 
+            this.textBox8.DataBindings.Add("Text", this, "SampleSize");
+            this.textBox9.DataBindings.Add("Text", this, "PercentEmission");
         }
 
         private double gauss_shiftparameter;
@@ -52,8 +54,10 @@ namespace Modul_2
         private double clogg_dispersion;
         private double clogg_scale;
 
-        private int sample_size;
         private double clogg_level;
+
+        private int sample_size;
+        private double percent_emission;
 
         public double GaussShiftParameter
         {
@@ -128,7 +132,6 @@ namespace Modul_2
             }
         }
 
-        public int SampleSize { get; set; }
         public double CloggLevel
         {
             get { return this.clogg_level; }
@@ -139,6 +142,26 @@ namespace Modul_2
                     this.clogg_level = value;
                     this.PaintClogging();
                 }
+            }
+        }
+
+        public int SampleSize
+        {
+            get { return sample_size; }
+            set
+            {
+                if (value > 0)
+                    sample_size = value;
+            }
+        }
+
+        public double PercentEmission
+        {
+            get { return percent_emission; }
+            set
+            {
+                if ((value > 0) && (value < 100))
+                    percent_emission = value;
             }
         }
 
@@ -300,6 +323,146 @@ namespace Modul_2
                 this.chart3.Series[2].Points.AddXY(x, y2);
                 x += h;
             }
+        }
+
+        private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (this.comboBox2.SelectedIndex == 0)
+            {
+                this.panel1.Enabled = false;
+                this.panel1.Visible = false;
+
+                this.panel2.Enabled = false;
+                this.panel2.Visible = false;
+
+                this.panel3.Enabled = false;
+                this.panel3.Visible = false;
+            }
+            else if (this.comboBox2.SelectedIndex == 2)
+            {
+                this.panel2.Enabled = false;
+                this.panel2.Visible = false;
+
+                this.panel1.Enabled = true;
+                this.panel1.Visible = true;
+            }
+            else
+            {
+                this.panel1.Enabled = false;
+                this.panel1.Visible = false;
+
+                this.panel2.Enabled = true;
+                this.panel2.Visible = true;
+            }
+
+            if (this.comboBox2.SelectedIndex != 0)
+            {
+                this.panel3.Enabled = true;
+                this.panel3.Visible = true;
+            }
+
+            if (this.comboBox2.SelectedIndex == 3)
+            {
+                this.panel4.Enabled = true;
+                this.panel4.Visible = true;
+            }
+            else
+            {
+                this.panel4.Enabled = false;
+                this.panel4.Visible = false;
+            }
+        }
+
+        private void textBox8_TextChanged(object sender, EventArgs e)
+        {
+            int var;
+            if ((int.TryParse(this.textBox8.Text, out var)) && (var > 0))
+            {
+                textBox8.BackColor = Color.White;
+            }
+            else
+            {
+                textBox8.BackColor = Color.Red;
+            }
+        }
+
+        private void textBox9_TextChanged(object sender, EventArgs e)
+        {
+            double var;
+            if ((double.TryParse(this.textBox9.Text, out var)) && (var > 0) && (var < 100))
+            {
+                textBox9.BackColor = Color.White;
+            }
+            else
+            {
+                textBox9.BackColor = Color.Red;
+            }
+        }
+
+        private void GenSample()
+        {
+            Random r = new Random();
+            double medium = 0.0;
+            int count = 0;
+
+            this.chart4.Series[0].Points.Clear();
+            if (this.comboBox2.SelectedIndex == 1)
+            {
+                double a = 1.0 / gauss_nu - 0.5;
+                double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
+                double c = 2.0 * b * b;
+
+                do
+                {
+                    double x = Math.Sqrt(-2.0 * Math.Log(r.NextDouble())) * Math.Cos(2.0 * Math.PI * r.NextDouble()) * b;
+
+                    if (Math.Log(r.NextDouble() * b) <= -Math.Pow(Math.Abs(x), gauss_nu) + x * x / c + a)
+                    {
+                        count++;
+                        x = x * gauss_scale + gauss_shiftparameter;
+                        medium += x;
+
+                        this.chart4.Series[0].Points.AddXY(count, x);
+                    }
+                } while (count < sample_size);
+            }
+            else if (this.comboBox2.SelectedIndex == 2)
+            {
+                double a = 1.0 / gauss_nu - 0.5;
+                double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
+                double c = 2.0 * b * b;
+
+                do
+                {
+                    double x = Math.Sqrt(-2.0 * Math.Log(r.NextDouble())) * Math.Cos(2.0 * Math.PI * r.NextDouble()) * b;
+
+                    if (Math.Log(r.NextDouble() * b) <= -Math.Pow(Math.Abs(x), gauss_nu) + x * x / c + a)
+                    {
+                        count++;
+                        if (r.NextDouble() < percent_emission / 100.0) x *= 4;
+                        x = x * gauss_scale + gauss_shiftparameter;
+                        medium += x;
+
+                        this.chart4.Series[0].Points.AddXY(count, x);
+                    }
+                } while (count < sample_size);
+            }
+            else if (this.comboBox2.SelectedIndex == 3)
+            {
+
+            }
+            medium /= sample_size;
+            label15.Text = medium.ToString();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            GenSample();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            GenSample();
         }
     }
 }
