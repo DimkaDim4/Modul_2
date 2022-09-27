@@ -35,15 +35,13 @@ namespace Modul_2
             this.textBox1.DataBindings.Add("Text", this, "GaussShiftParameter");
             this.textBox2.DataBindings.Add("Text", this, "GaussScale");
             this.textBox3.DataBindings.Add("Text", this, "GaussNu");
-
             this.textBox4.DataBindings.Add("Text", this, "CloggExpectedValue");
             this.textBox5.DataBindings.Add("Text", this, "CloggDispersion");
-            this.textBox7.DataBindings.Add("Text", this, "CloggScale");
-
             this.textBox6.DataBindings.Add("Text", this, "CloggLevel");
-
+            this.textBox7.DataBindings.Add("Text", this, "CloggScale");
             this.textBox8.DataBindings.Add("Text", this, "SampleSize");
             this.textBox9.DataBindings.Add("Text", this, "PercentEmission");
+            this.textBox10.DataBindings.Add("Text", this, "Alpha");
         }
 
         private double gauss_shiftparameter;
@@ -53,11 +51,10 @@ namespace Modul_2
         private double clogg_expectedvalue;
         private double clogg_dispersion;
         private double clogg_scale;
-
         private double clogg_level;
-
         private int sample_size;
         private double percent_emission;
+        private double alpha;
 
         public double GaussShiftParameter
         {
@@ -131,7 +128,6 @@ namespace Modul_2
                 }
             }
         }
-
         public double CloggLevel
         {
             get { return this.clogg_level; }
@@ -144,7 +140,6 @@ namespace Modul_2
                 }
             }
         }
-
         public int SampleSize
         {
             get { return sample_size; }
@@ -154,7 +149,6 @@ namespace Modul_2
                     sample_size = value;
             }
         }
-
         public double PercentEmission
         {
             get { return percent_emission; }
@@ -162,6 +156,16 @@ namespace Modul_2
             {
                 if ((value > 0) && (value < 100))
                     percent_emission = value;
+            }
+        }
+
+        public double Alpha
+        {
+            get { return alpha; }
+            set 
+            {
+                if ((value > 0) && (value < 0.5))
+                    alpha = value; 
             }
         }
 
@@ -399,60 +403,149 @@ namespace Modul_2
             }
         }
 
+        private void textBox10_TextChanged(object sender, EventArgs e)
+        {
+            double var;
+            if ((double.TryParse(this.textBox10.Text, out var)) && (var >= 0) && (var < 0.5))
+            {
+                textBox10.BackColor = Color.White;
+            }
+            else
+            {
+                textBox10.BackColor = Color.Red;
+            }
+        }
+
         private void GenSample()
         {
+            this.chart4.Series[0].Points.Clear();
+            this.chart4.Series[1].Points.Clear();
+            this.chart4.Series[2].Points.Clear();
             Random r = new Random();
-            double medium = 0.0;
             int count = 0;
 
-            this.chart4.Series[0].Points.Clear();
+            List<double> sample = new List<double>();
+
+            double a = 1.0 / gauss_nu - 0.5;
+            double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
+            double c = 2.0 * b * b;
+
             if (this.comboBox2.SelectedIndex == 1)
             {
-                double a = 1.0 / gauss_nu - 0.5;
-                double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
-                double c = 2.0 * b * b;
-
                 do
                 {
                     double x = Math.Sqrt(-2.0 * Math.Log(r.NextDouble())) * Math.Cos(2.0 * Math.PI * r.NextDouble()) * b;
 
                     if (Math.Log(r.NextDouble() * b) <= -Math.Pow(Math.Abs(x), gauss_nu) + x * x / c + a)
                     {
-                        count++;
                         x = x * gauss_scale + gauss_shiftparameter;
-                        medium += x;
-
-                        this.chart4.Series[0].Points.AddXY(count, x);
+                        sample.Add(x);
+                        count++;
                     }
                 } while (count < sample_size);
             }
             else if (this.comboBox2.SelectedIndex == 2)
             {
-                double a = 1.0 / gauss_nu - 0.5;
-                double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
-                double c = 2.0 * b * b;
-
                 do
                 {
                     double x = Math.Sqrt(-2.0 * Math.Log(r.NextDouble())) * Math.Cos(2.0 * Math.PI * r.NextDouble()) * b;
 
                     if (Math.Log(r.NextDouble() * b) <= -Math.Pow(Math.Abs(x), gauss_nu) + x * x / c + a)
                     {
-                        count++;
                         if (r.NextDouble() < percent_emission / 100.0) x *= 4;
                         x = x * gauss_scale + gauss_shiftparameter;
-                        medium += x;
-
-                        this.chart4.Series[0].Points.AddXY(count, x);
+                        sample.Add(x);
+                        count++;
                     }
                 } while (count < sample_size);
             }
             else if (this.comboBox2.SelectedIndex == 3)
             {
+                do
+                {
+                    double x = Math.Sqrt(-2.0 * Math.Log(r.NextDouble())) * Math.Cos(2.0 * Math.PI * r.NextDouble()) * b;
 
+                    if (r.NextDouble() < 1 - clogg_level)
+                    {
+                        if (Math.Log(r.NextDouble() * b) <= -Math.Pow(Math.Abs(x), gauss_nu) + x * x / c + a)
+                        {
+                            x = x * gauss_scale + gauss_shiftparameter;
+                            sample.Add(x);
+                            count++;
+                        }
+                    }
+                    else
+                    {
+                        x = x * clogg_scale * clogg_dispersion + clogg_expectedvalue;
+                        sample.Add(x);
+                        count++;
+                    }
+                } while (count < sample_size);
             }
+
+            double medium = 0.0;
+            double median = 0.0;
+            double dispersion = 0.0;
+            double beta3 = 0.0;
+            double beta4 = 0.0;
+            foreach (double y in sample)
+            {
+                medium += y;
+                this.chart4.Series[0].Points.Add(y);
+            }
+
             medium /= sample_size;
+
+            double d2;
+            double d3;
+            double d4;
+            foreach (double y in sample)
+            {
+                d2 = (y - medium) * (y - medium);
+                d3 = d2 * (y - medium);
+                d4 = d2 * d2;
+
+                dispersion += (y - medium) * (y - medium);
+                beta3 += d3;
+                beta4 += d4;
+            }
+            dispersion /= sample_size;
+            beta3 /= sample_size * Math.Sqrt(Math.Pow(dispersion, 3.0));
+            beta4 /= sample_size * dispersion * dispersion;
+
+            if (sample_size % 2 != 0) median = sample.NthItem((int)(sample_size / 2));
+            else median = 0.5 * (sample.NthItem(sample_size / 2 - 1) + sample.NthItem(sample_size / 2));
+
+            if (this.comboBox2.SelectedIndex == 3)
+            {
+                double trimmed_mean = 0.0;
+                int k = (int)(sample_size * alpha);
+                sample.Sort();
+
+                for (int i = k; i < sample_size - k; i++)
+                {
+                    trimmed_mean += sample[i];
+                }
+                trimmed_mean /= (sample_size - 2 * k);
+                label27.Text = trimmed_mean.ToString();
+            }
+
             label15.Text = medium.ToString();
+            label20.Text = median.ToString();
+            label21.Text = dispersion.ToString();
+            label22.Text = beta3.ToString();
+            label23.Text = beta4.ToString();
+
+            this.chart4.Series[1].Points.AddXY(1, medium);
+            this.chart4.Series[1].Points.AddXY(sample_size, medium);
+
+            this.chart4.Series[2].Points.AddXY(1, median);
+            this.chart4.Series[2].Points.AddXY(sample_size, median);
+
+            this.chart4.ChartAreas[0].AxisX.Minimum = 1;
+            this.chart4.ChartAreas[0].AxisX.Maximum = sample_size;
+
+            sample.Clear();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -463,6 +556,14 @@ namespace Modul_2
         private void button2_Click(object sender, EventArgs e)
         {
             GenSample();
+        }
+    }
+
+    public static class NthExtensions
+    {
+        public static double NthItem(this IEnumerable<double> coll, int n)
+        {
+            return coll.OrderBy(x => x).Skip(n - 1).First();
         }
     }
 }
