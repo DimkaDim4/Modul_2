@@ -4,9 +4,13 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+using Accord;
+using Accord.Math.Optimization;
 
 namespace Modul_2
 {
@@ -25,7 +29,9 @@ namespace Modul_2
             this.clogg_level = 0.1;
             this.sample_size = 100;
             this.percent_emission = 5.0;
-
+            this.alpha = 0.1;
+            this.delta = 0.1;
+            this.gamma = chart1.DataManipulator.Statistics.GammaFunction(1.0 / this.gauss_nu);
             this.comboBox2.SelectedIndex = 0;
 
             this.PaintDistribution();
@@ -42,6 +48,16 @@ namespace Modul_2
             this.textBox8.DataBindings.Add("Text", this, "SampleSize");
             this.textBox9.DataBindings.Add("Text", this, "PercentEmission");
             this.textBox10.DataBindings.Add("Text", this, "Alpha");
+            this.textBox11.DataBindings.Add("Text", this, "Delta");
+
+            this.label15.Text = "";
+            this.label20.Text = "";
+            this.label21.Text = "";
+            this.label22.Text = "";
+            this.label23.Text = "";
+            this.label27.Text = "";
+            this.label28.Text = "";
+            this.label29.Text = "";
         }
 
         private double gauss_shiftparameter;
@@ -55,6 +71,11 @@ namespace Modul_2
         private int sample_size;
         private double percent_emission;
         private double alpha;
+        private double delta;
+        private double gamma;
+        private List<double> sample = new List<double>();
+
+        private double const1;
 
         public double GaussShiftParameter
         {
@@ -87,6 +108,7 @@ namespace Modul_2
                 if (value >= 1)
                 { 
                     this.gauss_nu = value;
+                    gamma = chart1.DataManipulator.Statistics.GammaFunction(1.0 / this.gauss_nu);
                     this.PaintDistribution();
                     this.PaintClogging();
                 } 
@@ -158,7 +180,6 @@ namespace Modul_2
                     percent_emission = value;
             }
         }
-
         public double Alpha
         {
             get { return alpha; }
@@ -166,6 +187,18 @@ namespace Modul_2
             {
                 if ((value > 0) && (value < 0.5))
                     alpha = value; 
+            }
+        }
+        public double Delta
+        {
+            get { return delta; }
+            set
+            {
+                if ((value > 0) && (value <= 1.0))
+                {
+                    delta = value;
+                    const1 = -1.0 / Math.Pow(GaussFunction(0), Delta);
+                }
             }
         }
 
@@ -262,7 +295,6 @@ namespace Modul_2
 
         private void PaintDistribution()
         {
-            double g = chart1.DataManipulator.Statistics.GammaFunction(1.0 / this.gauss_nu);
             double a = this.GaussShiftParameter - this.GaussScale * 5.0;
             double b = this.GaussShiftParameter + this.GaussScale * 5.0;
             double h = (b - a) / 200.0;
@@ -272,10 +304,45 @@ namespace Modul_2
             x = a;
             while (x <= b)
             {
-                y = gauss_nu / (2.0 * g) * Math.Exp(- Math.Pow(Math.Abs(x - GaussShiftParameter), gauss_nu)) * this.gauss_scale;
+                y = gauss_nu / (2.0 * gamma) * Math.Exp(- Math.Pow(Math.Abs(x - GaussShiftParameter), gauss_nu)) * this.gauss_scale;
                 this.chart1.Series[0].Points.AddXY(x, y);
                 x += h;
             }
+        }
+
+        private double GaussFunction(double x)
+        {
+            return gauss_nu / (2.0 * gamma) * Math.Exp(-Math.Pow(Math.Abs(x), gauss_nu));
+        }
+
+        private double RhoMaximal(double y, double teta)
+        {
+            return -Math.Log(GaussFunction((y - teta) / GaussScale));
+        }
+
+        private double RhoRadical(double y, double teta)
+        {
+            return const1 * Math.Pow(GaussFunction((y - teta) / GaussScale), delta);
+        }
+
+        private double FunctionalMaximal(double teta)
+        {
+            double result = 0.0;
+            foreach (double y in sample)
+            {
+                result += RhoMaximal(y, teta);
+            }
+            return result;
+        }
+
+        private double FunctionalRadical(double teta)
+        {
+            double result = 0.0;
+            foreach (double y in sample)
+            {
+                result += RhoRadical(y, teta);
+            }
+            return result;
         }
 
         private void PaintClogg()
@@ -416,15 +483,27 @@ namespace Modul_2
             }
         }
 
+        private void textBox11_TextChanged(object sender, EventArgs e)
+        {
+            double var;
+            if ((double.TryParse(this.textBox11.Text, out var)) && (var > 0) && (var <= 1.0))
+            {
+                textBox11.BackColor = Color.White;
+            }
+            else
+            {
+                textBox11.BackColor = Color.Red;
+            }
+        }
+
         private void GenSample()
         {
+            sample.Clear();
             this.chart4.Series[0].Points.Clear();
             this.chart4.Series[1].Points.Clear();
             this.chart4.Series[2].Points.Clear();
             Random r = new Random();
             int count = 0;
-
-            List<double> sample = new List<double>();
 
             double a = 1.0 / gauss_nu - 0.5;
             double b = 1.0 / Math.Pow(gauss_nu, 1.0 / gauss_nu);
@@ -484,7 +563,7 @@ namespace Modul_2
             }
 
             double medium = 0.0;
-            double median = 0.0;
+            double median;
             double dispersion = 0.0;
             double beta3 = 0.0;
             double beta4 = 0.0;
@@ -528,6 +607,24 @@ namespace Modul_2
                 }
                 trimmed_mean /= (sample_size - 2 * k);
                 label27.Text = trimmed_mean.ToString();
+
+                Func<double[], double> func_1 = x => FunctionalRadical(x[0]);
+                Func<double[], double> func_2 = x => FunctionalMaximal(x[0]);
+
+                Cobyla cobyla_1 = new Cobyla(1, func_1);
+                Cobyla cobyla_2 = new Cobyla(1, func_2);
+
+                bool success_1 = cobyla_1.Minimize();
+                bool success_2 = cobyla_2.Minimize();
+
+                double minimum_1 = cobyla_1.Value;
+                double minimum_2 = cobyla_2.Value;
+
+                double[] solution_1 = cobyla_1.Solution;
+                double[] solution_2 = cobyla_2.Solution;
+
+                label28.Text = solution_1[0].ToString();
+                label29.Text = solution_2[0].ToString();
             }
 
             label15.Text = medium.ToString();
@@ -544,8 +641,6 @@ namespace Modul_2
 
             this.chart4.ChartAreas[0].AxisX.Minimum = 1;
             this.chart4.ChartAreas[0].AxisX.Maximum = sample_size;
-
-            sample.Clear();
         }
 
         private void button1_Click(object sender, EventArgs e)
