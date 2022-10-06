@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlTypes;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using System.Windows.Forms.VisualStyles;
 using Accord;
 using Accord.Math.Optimization;
 
@@ -32,6 +34,9 @@ namespace Modul_2
             this.alpha = 0.1;
             this.delta = 0.1;
             this.gamma = chart1.DataManipulator.Statistics.GammaFunction(1.0 / this.gauss_nu);
+            this.M = 100;
+            this.Nmax = 200;
+            this.Nmin = 100;
             this.comboBox2.SelectedIndex = 0;
 
             this.PaintDistribution();
@@ -49,6 +54,9 @@ namespace Modul_2
             this.textBox9.DataBindings.Add("Text", this, "PercentEmission");
             this.textBox10.DataBindings.Add("Text", this, "Alpha");
             this.textBox11.DataBindings.Add("Text", this, "Delta");
+            this.textBox12.DataBindings.Add("Text", this, "M");
+            this.textBox13.DataBindings.Add("Text", this, "Nmin");
+            this.textBox14.DataBindings.Add("Text", this, "Nmax");
 
             this.label15.Text = "";
             this.label20.Text = "";
@@ -73,9 +81,52 @@ namespace Modul_2
         private double alpha;
         private double delta;
         private double gamma;
-        private List<double> sample = new List<double>();
-
         private double const1;
+
+        private List<double> sample = new List<double>();
+        private List<double> medium = new List<double>();
+        private List<double> median = new List<double>();
+        private List<double> dispersion = new List<double>();
+        private List<double> beta3 = new List<double>();
+        private List<double> beta4 = new List<double>();
+        private List<double> trimmed_mean = new List<double>();
+        private List<double> evaluation_1 = new List<double>();
+        private List<double> evaluation_2 = new List<double>();
+
+        private int m;
+        private int n_min;
+        private int n_max;
+
+
+        public int M
+        {
+            get { return m; }
+            set
+            {
+                if (value >= 100)
+                    m = value;
+            }
+        }
+        
+        public int Nmin
+        {
+            get { return n_min; }
+            set
+            {
+                if ((value <= n_max) && (value >= 100))
+                    n_min = value;
+            }
+        }
+
+        public int Nmax
+        {
+            get { return n_max; }
+            set
+            {
+                if ((value >= n_min) && (value >= 100))
+                    n_max = value;
+            }
+        }
 
         public double GaussShiftParameter
         {
@@ -398,49 +449,128 @@ namespace Modul_2
 
         private void comboBox2_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (this.comboBox2.SelectedIndex == 0)
+            switch(this.comboBox2.SelectedIndex)
             {
-                this.panel1.Enabled = false;
-                this.panel1.Visible = false;
+                case 0:
+                    {
+                        this.panel1.Enabled = false;
+                        this.panel1.Visible = false;
 
-                this.panel2.Enabled = false;
-                this.panel2.Visible = false;
+                        this.panel2.Enabled = false;
+                        this.panel2.Visible = false;
 
-                this.panel3.Enabled = false;
-                this.panel3.Visible = false;
-            }
-            else if (this.comboBox2.SelectedIndex == 2)
-            {
-                this.panel2.Enabled = false;
-                this.panel2.Visible = false;
+                        this.panel3.Enabled = false;
+                        this.panel3.Visible = false;
 
-                this.panel1.Enabled = true;
-                this.panel1.Visible = true;
-            }
-            else
-            {
-                this.panel1.Enabled = false;
-                this.panel1.Visible = false;
+                        this.panel4.Enabled = false;
+                        this.panel4.Visible = false;
 
-                this.panel2.Enabled = true;
-                this.panel2.Visible = true;
-            }
+                        this.panel5.Enabled = false;
+                        this.panel5.Visible = false;
 
-            if (this.comboBox2.SelectedIndex != 0)
-            {
-                this.panel3.Enabled = true;
-                this.panel3.Visible = true;
-            }
+                        this.label12.Visible = false;
+                        this.textBox8.Enabled = false;
+                        this.textBox8.Visible = false;
+                        break;
+                    }
 
-            if (this.comboBox2.SelectedIndex == 3)
-            {
-                this.panel4.Enabled = true;
-                this.panel4.Visible = true;
-            }
-            else
-            {
-                this.panel4.Enabled = false;
-                this.panel4.Visible = false;
+                case 1:
+                    {
+                        this.panel1.Enabled = false;
+                        this.panel1.Visible = false;
+
+                        this.panel2.Enabled = true;
+                        this.panel2.Visible = true;
+
+                        this.panel3.Enabled = true;
+                        this.panel3.Visible = true;
+
+                        this.panel4.Enabled = false;
+                        this.panel4.Visible = false;
+
+                        this.panel5.Enabled = false;
+                        this.panel5.Visible = false;
+
+                        this.label12.Visible = true;
+                        this.textBox8.Enabled = true;
+                        this.textBox8.Visible = true;
+
+                        this.M = 1;
+                        break;
+                    }
+
+                case 2:
+                    {
+                        this.panel1.Enabled = true;
+                        this.panel1.Visible = true;
+
+                        this.panel2.Enabled = false;
+                        this.panel2.Visible = false;
+
+                        this.panel3.Enabled = true;
+                        this.panel3.Visible = true;
+
+                        this.panel4.Enabled = false;
+                        this.panel4.Visible = false;
+
+                        this.panel5.Enabled = false;
+                        this.panel5.Visible = false;
+
+                        this.label12.Visible = true;
+                        this.textBox8.Enabled = true;
+                        this.textBox8.Visible = true;
+
+                        this.M = 1;
+                        break;
+                    }
+
+                case 3:
+                    {
+                        this.panel1.Enabled = false;
+                        this.panel1.Visible = false;
+
+                        this.panel2.Enabled = true;
+                        this.panel2.Visible = true;
+
+                        this.panel3.Enabled = true;
+                        this.panel3.Visible = true;
+
+                        this.panel4.Enabled = true;
+                        this.panel4.Visible = true;
+
+                        this.panel5.Enabled = false;
+                        this.panel5.Visible = false;
+
+                        this.label12.Visible = true;
+                        this.textBox8.Enabled = true;
+                        this.textBox8.Visible = true;
+
+                        this.M = 1;
+                        break;
+                    }
+
+                case 4:
+                    {
+                        this.panel1.Enabled = false;
+                        this.panel1.Visible = false;
+
+                        this.panel2.Enabled = false;
+                        this.panel2.Visible = false;
+
+                        this.panel3.Enabled = true;
+                        this.panel3.Visible = true;
+
+                        this.panel4.Enabled = true;
+                        this.panel4.Visible = true;
+
+                        this.panel5.Enabled = true;
+                        this.panel5.Visible = true;
+
+                        this.label12.Visible = false;
+                        this.textBox8.Enabled = false;
+                        this.textBox8.Visible = false;
+                        break;
+                    }
             }
         }
 
@@ -496,12 +626,186 @@ namespace Modul_2
             }
         }
 
+        private void textBox12_TextChanged(object sender, EventArgs e)
+        {
+            int var;
+            if ((int.TryParse(this.textBox12.Text, out var)) && (var >= 100))
+            {
+                textBox12.BackColor = Color.White;
+            }
+            else
+            {
+                textBox12.BackColor = Color.Red;
+            }
+        }
+
+        private void textBox13_TextChanged(object sender, EventArgs e)
+        {
+            int var;
+            if ((int.TryParse(this.textBox13.Text, out var)) && (var >= 100) && (var <= n_max))
+            {
+                textBox13.BackColor = Color.White;
+            }
+            else
+            {
+                textBox13.BackColor = Color.Red;
+            }
+        }
+
+        private void textBox14_TextChanged(object sender, EventArgs e)
+        {
+            int var;
+            if ((int.TryParse(this.textBox14.Text, out var)) && (var >= n_min) && (var >= 100))
+            {
+                textBox14.BackColor = Color.White;
+            }
+            else
+            {
+                textBox14.BackColor = Color.Red;
+            }
+        }
+
+        private void CalculateAdditionalStatistic()
+        {
+            double trimmed_mean = 0.0;
+            int k = (int)(sample_size * alpha);
+            sample.Sort();
+
+            for (int i = k; i < sample_size - k; i++)
+            {
+                trimmed_mean += sample[i];
+            }
+            trimmed_mean /= (sample_size - 2 * k);
+
+            Func<double[], double> func_1 = x => FunctionalRadical(x[0]);
+            Func<double[], double> func_2 = x => FunctionalMaximal(x[0]);
+
+            Cobyla cobyla_1 = new Cobyla(1, func_1);
+            Cobyla cobyla_2 = new Cobyla(1, func_2);
+
+            bool success_1 = cobyla_1.Minimize();
+            bool success_2 = cobyla_2.Minimize();
+
+            double minimum_1 = cobyla_1.Value;
+            double minimum_2 = cobyla_2.Value;
+
+            double[] solution_1 = cobyla_1.Solution;
+            double[] solution_2 = cobyla_2.Solution;
+
+            this.trimmed_mean.Add(trimmed_mean);
+            this.evaluation_1.Add(solution_1[0]);
+            this.evaluation_2.Add(solution_2[0]);
+        }
+
+        private void CalculateStatistic()
+        {
+            double medium = 0.0;
+            double median;
+            double dispersion = 0.0;
+            double beta3 = 0.0;
+            double beta4 = 0.0;
+
+            foreach (double y in sample)
+            {
+                medium += y;
+            }
+            medium /= sample_size;
+
+            double d2;
+            double d3;
+            double d4;
+            foreach (double y in sample)
+            {
+                d2 = (y - medium) * (y - medium);
+                d3 = d2 * (y - medium);
+                d4 = d2 * d2;
+
+                dispersion += (y - medium) * (y - medium);
+                beta3 += d3;
+                beta4 += d4;
+            }
+            dispersion /= sample_size;
+            beta3 /= sample_size * Math.Sqrt(Math.Pow(dispersion, 3.0));
+            beta4 /= sample_size * dispersion * dispersion;
+
+            if (sample_size % 2 != 0) median = sample.NthItem((int)(sample_size / 2));
+            else median = 0.5 * (sample.NthItem(sample_size / 2 - 1) + sample.NthItem(sample_size / 2));
+
+            this.medium.Add(medium);
+            this.median.Add(median);
+            this.dispersion.Add(dispersion);
+            this.beta3.Add(beta3);
+            this.beta4.Add(beta4);
+        }
+
+        private void DrawSample()
+        {
+            this.chart4.Series[0].Points.Clear();
+
+            this.chart4.ChartAreas[0].AxisX.Minimum = 1;
+            this.chart4.ChartAreas[0].AxisX.Maximum = sample_size;
+
+            foreach (double y in sample)
+            {
+                this.chart4.Series[0].Points.Add(y);
+            }
+        }
+
+        private void TextOfLabel()
+        {
+            if ((this.comboBox2.SelectedIndex == 3) || (this.comboBox2.SelectedIndex == 4))
+            {
+                double trimmed_mean = 0.0;
+                double evaluation_1 = 0.0;
+                double evaluation_2 = 0.0;
+
+                for (int i = 0; i < this.trimmed_mean.Count; i++)
+                {
+                    trimmed_mean += this.trimmed_mean[i];
+                    evaluation_1 += this.evaluation_1[i];
+                    evaluation_2 += this.evaluation_2[i];
+                }
+
+                trimmed_mean /= this.trimmed_mean.Count;
+                evaluation_1 /= this.evaluation_1.Count;
+                evaluation_2 /= this.evaluation_2.Count;
+
+                label27.Text = trimmed_mean.ToString();
+                label28.Text = evaluation_1.ToString();
+                label29.Text = evaluation_2.ToString();
+            }
+
+            double medium = 0.0;
+            double median = 0.0;
+            double dispersion = 0.0;
+            double beta3 = 0.0;
+            double beta4 = 0.0;
+
+            for (int i = 0; i < this.medium.Count; i++)
+            {
+                medium += this.medium[i];
+                median += this.median[i];
+                dispersion += this.dispersion[i];
+                beta3 += this.beta3[i];
+                beta4 += this.beta4[i];
+            }
+
+            medium /= this.medium.Count;
+            median /= this.median.Count;
+            dispersion /= this.dispersion.Count;
+            beta3 /= this.beta3.Count;
+            beta4 /= this.beta4.Count;
+
+            label15.Text = medium.ToString();
+            label20.Text = median.ToString();
+            label21.Text = dispersion.ToString();
+            label22.Text = beta3.ToString();
+            label23.Text = beta4.ToString();
+        }
+
         private void GenSample()
         {
             sample.Clear();
-            this.chart4.Series[0].Points.Clear();
-            this.chart4.Series[1].Points.Clear();
-            this.chart4.Series[2].Points.Clear();
             Random r = new Random();
             int count = 0;
 
@@ -538,7 +842,7 @@ namespace Modul_2
                     }
                 } while (count < sample_size);
             }
-            else if (this.comboBox2.SelectedIndex == 3)
+            else if ((this.comboBox2.SelectedIndex == 3) || (this.comboBox2.SelectedIndex == 4))
             {
                 do
                 {
@@ -561,96 +865,65 @@ namespace Modul_2
                     }
                 } while (count < sample_size);
             }
-
-            double medium = 0.0;
-            double median;
-            double dispersion = 0.0;
-            double beta3 = 0.0;
-            double beta4 = 0.0;
-            foreach (double y in sample)
-            {
-                medium += y;
-                this.chart4.Series[0].Points.Add(y);
-            }
-
-            medium /= sample_size;
-
-            double d2;
-            double d3;
-            double d4;
-            foreach (double y in sample)
-            {
-                d2 = (y - medium) * (y - medium);
-                d3 = d2 * (y - medium);
-                d4 = d2 * d2;
-
-                dispersion += (y - medium) * (y - medium);
-                beta3 += d3;
-                beta4 += d4;
-            }
-            dispersion /= sample_size;
-            beta3 /= sample_size * Math.Sqrt(Math.Pow(dispersion, 3.0));
-            beta4 /= sample_size * dispersion * dispersion;
-
-            if (sample_size % 2 != 0) median = sample.NthItem((int)(sample_size / 2));
-            else median = 0.5 * (sample.NthItem(sample_size / 2 - 1) + sample.NthItem(sample_size / 2));
-
-            if (this.comboBox2.SelectedIndex == 3)
-            {
-                double trimmed_mean = 0.0;
-                int k = (int)(sample_size * alpha);
-                sample.Sort();
-
-                for (int i = k; i < sample_size - k; i++)
-                {
-                    trimmed_mean += sample[i];
-                }
-                trimmed_mean /= (sample_size - 2 * k);
-                label27.Text = trimmed_mean.ToString();
-
-                Func<double[], double> func_1 = x => FunctionalRadical(x[0]);
-                Func<double[], double> func_2 = x => FunctionalMaximal(x[0]);
-
-                Cobyla cobyla_1 = new Cobyla(1, func_1);
-                Cobyla cobyla_2 = new Cobyla(1, func_2);
-
-                bool success_1 = cobyla_1.Minimize();
-                bool success_2 = cobyla_2.Minimize();
-
-                double minimum_1 = cobyla_1.Value;
-                double minimum_2 = cobyla_2.Value;
-
-                double[] solution_1 = cobyla_1.Solution;
-                double[] solution_2 = cobyla_2.Solution;
-
-                label28.Text = solution_1[0].ToString();
-                label29.Text = solution_2[0].ToString();
-            }
-
-            label15.Text = medium.ToString();
-            label20.Text = median.ToString();
-            label21.Text = dispersion.ToString();
-            label22.Text = beta3.ToString();
-            label23.Text = beta4.ToString();
-
-            this.chart4.Series[1].Points.AddXY(1, medium);
-            this.chart4.Series[1].Points.AddXY(sample_size, medium);
-
-            this.chart4.Series[2].Points.AddXY(1, median);
-            this.chart4.Series[2].Points.AddXY(sample_size, median);
-
-            this.chart4.ChartAreas[0].AxisX.Minimum = 1;
-            this.chart4.ChartAreas[0].AxisX.Maximum = sample_size;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
+            medium.Clear();
+            median.Clear();
+            dispersion.Clear();
+            beta3.Clear();
+            beta4.Clear();
+            trimmed_mean.Clear();
+            evaluation_1.Clear();
+            evaluation_2.Clear();
+
             GenSample();
+            DrawSample();
+            CalculateStatistic();
+            TextOfLabel();
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
+            medium.Clear();
+            median.Clear();
+            dispersion.Clear();
+            beta3.Clear();
+            beta4.Clear();
+            trimmed_mean.Clear();
+            evaluation_1.Clear();
+            evaluation_2.Clear();
+
             GenSample();
+            DrawSample();
+            CalculateStatistic();
+            CalculateAdditionalStatistic();
+            TextOfLabel();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Random r = new Random();
+            this.chart4.Series[0].Points.Clear();
+            medium.Clear();
+            median.Clear();
+            dispersion.Clear();
+            beta3.Clear();
+            beta4.Clear();
+            trimmed_mean.Clear();
+            evaluation_1.Clear();
+            evaluation_2.Clear();
+
+            for (int i = 0; i < M; i++)
+            {
+                SampleSize = r.Next(Nmin, Nmax);
+                CloggLevel = (double)r.Next(5, 40) / 100.0;
+                GenSample();
+                CalculateStatistic();
+                CalculateAdditionalStatistic();
+            }
+            TextOfLabel();
         }
     }
 
